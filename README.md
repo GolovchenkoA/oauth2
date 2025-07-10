@@ -48,6 +48,43 @@ And that looks a lot like the Implicit flow in OAuth, where it returns the token
 
 
 ### Access Token Types and their Tradeoffs
-So at a high level, there are essentially two different families have access tokens. Access tokens can either be a reference token, which is essentially just a long, random string of characters, that doesn't actually mean anything, it's a pointer to something.
-Or the access token could be structured or self-contained. And that's the case where the access token string itself actually contains data in some sort of format. Now, in both cases, there's many different options you have to actually
-implement this. For example, reference tokens could be implemented in a relational database where you have a table for tokens.
+So at a high level, there are essentially two different families have access tokens. Access tokens can either be a 
+- **reference token**, which is essentially just a long, random string of characters, that doesn't actually mean anything, it's a pointer to something.
+- Or the access token could be **structured** or **self-contained**. And that's the case where the access token string itself actually contains data in some sort of format. Now, in both cases, there's many different options you have to actually
+implement this. For example, reference tokens could be implemented in a relational database where you have a table for tokens. One column is the actual token string itself and the other columns are things like the user ID or the lifetime of the token or the scopes issued to it.
+However, you could also implement reference tokens using a caching layer like Memcache or Redis where you can generate a random string that becomes the cache key.
+Then you store any data about the token inside of that database. ⚠️**The overall idea with `reference tokens` is that the token string itself doesn't actually mean anything itself.**
+
+**reference tokens Pros and Cons:**
+
+✅Pros:
+- Simple
+- Easy to revoke
+- Token data is not visible (it's just a random string)
+
+❌ Cons:
+- Token should be stored somewere. It's not a big deal, but we should think about that especially if the data store should scale 
+- Requires network to validate the token. It becoms more important on scale when the storage starting to gets more and more requests.
+- Sometimes it requires not only a storage but also an additional API that's used by services to request stored tokens.
+
+
+**Self-encoded (contains meaningful data) tokens Pros and Cons:**
+
+✅ Pros:
+Services which get the token know how to validate it and read the data inside the token. So where this really starts to shine is if you're using an OAuth server that's not part of your API code base.
+If you're building out an API and using some sort of other product as an OAuth server, then it makes a lot of sense to not have to have any sort of shared storage between those two systems since they operate independently. For example, if you're using Okta as your OAuth server, then Okta is the one creating these access tokens. Your APIs have nothing to do with the code base behind Okta.
+You just know how to validate JSON Web Tokens and then you can build your APIs, which are validating access tokens just by looking at the string and never need to go back and ask over the network whether the token is valid.
+
+And that's why you do see self-encoded tokens, especially JSON Web Tokens, in so many authorization servers. So it's really the best option if you're building a larger scale API, but especially if you're using an OAuth server that is completely separate from your APIs. And that's essentially what you're doing when you pick up a product off the shelf. Whether it's an open source implementation of an OAuth server or a service. Using self-encoded access tokens is a lot more scalable and gives you a lot of advantages.
+
+- Do not need shared storage
+- Can be validated without network.
+  
+
+❌ Cons:
+
+So anything you pack into the access token, whether that's the user's ID or email or nameor groups or things about the user, all that's in the token and it's just base64 encoded.
+Like if you look at the string, it doesn't look like it says anything, but it's really just base64 encoded data. So you can just copy this middle part here, run it through a base64 decoder and you'll see a JSON blob. And the trick is that anybody can do that.
+
+- JWT Tokens are visible (can be decoded and they contain some information)
+- No way to revoke them before they are expired
