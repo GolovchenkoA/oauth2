@@ -88,3 +88,21 @@ Like if you look at the string, it doesn't look like it says anything, but it's 
 
 - JWT Tokens are visible (can be decoded and they contain some information)
 - No way to revoke them before they are expired
+
+
+
+### JWT Token validation (on API server side)
+There are multiple ways:
+- **Remote Token Introspection**: API server gets a request, extracts a JWT token and  sends a POST request to the auth server to check if the token is valid. Drawbacks: Requires communicate with the Auth server and it adds latency. See specification [RFC7622 OAuth 2.0 Token Introspection](https://www.oauth.com/oauth2-servers/token-introspection-endpoint/)
+- **Local Token Validation**:
+ ⚠️ Best practice for this validation type is not includ "alg" (algorithm) field in JWT token. Why? Because only you should know what algorithm (RS256 or HS256) is used. It can be done by getting your Auth server metadata from a specific URL. The algorithm can be found there. A public key can be get from the methadata as well.
+ ⚠️ Do not try to implement all the validation and getting methadate by your self. Always use a library for that purposes.
+- **Use API Gateway** (✅ the best of the both worlds!!!!): API Gateway server use Local Validation and drops request with invalid tokens. The rest calls (including calls with revoked tokens) are redirected to API servers. 
+
+✅ Pros:
+- API Gateway as the first line of security that process all the requests and filters invalid ones.
+- API Servers get much less traffic
+- 
+❌ Cons:
+- It does not filter revoked tokens, but it's not an issue if a token was valid some time ago. It's an appropriate solution for non critical API calls.
+- API servers still should decide what to do with request with revoked tokens. They still can validate such requests using `Remote Token Introspection`
