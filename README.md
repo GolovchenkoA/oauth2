@@ -104,5 +104,41 @@ There are multiple ways:
 - API Servers get much less traffic
 - 
 ❌ Cons:
-- It does not filter revoked tokens, but it's not an issue if a token was valid some time ago. It's an appropriate solution for non critical API calls.
+- It does not filter revoked tokens, but it's not an issue if a token was valid some time ago. It's an appropriate solution for non critical API calls.  ⚠️ ChatGPT says that's not always true for AWS API Gateway. It depends how you configure the server.
 - API servers still should decide what to do with request with revoked tokens. They still can validate such requests using `Remote Token Introspection`
+
+
+### Tokens lifetime
+Token expiration is always a compromise between security, performance and user experience!!!.
+
+There are 2 type of tokens: 
+- original token
+- refresh token
+
+Tokens on a web-browser app and mobile app might be processed differently. Mobile apps is more capable to refresh your token using the refresh-token why you are logged in the app and your session is active.
+ ⚠️ Token lifetimes do not depend on the session lifetime at the OAuth server. For example, I can be always logged into the server, have an infinite session there, but the refresh token can still be shorter lived.
+And you might want to do this, for example, so that you know that the application is always using a fresh access token and refresh token pair, and has actually visited the OAuth server and logged in there.
+Your OAuth server session policy about how long those sessions last does not affect how long your access tokens and refresh tokens can last. So in summary, the longer your access token and refresh token lifetimes are, the more it improves the user experience because the user does not get interrupted by either a full page redirect or a pop up of a browser or a network lag while the application is busy
+using a refresh token. But of course, you have to balance that with the security tradeoffs of those longer lifetimes. So you're going to want to pick and choose based on the situation.
+And in the next section, we'll talk about how to use a hybrid approach to get the best of both worlds.
+
+⚠️ Token lifetimes should not be the same for every user. It might different depend on user group, security risks, etc.
+
+
+### Token Revocation
+There are cases when we need to revoke an authentication token (and its refresh token) to be sure that is not valid anymore. For example when a user is logged out, or it's blocked by an administrator. OAuth Server should provide an endpoint for such cases. This link might be useful https://auth0.com/docs/authenticate/login/logout/universal-logout
+
+
+### Request Scopes
+Scopes let us segment out the access that an application gets. This way, an application can request access to read your data, but it wouldn't get accessto be able to write data.
+You've probably seen this if you've connected any applications to your Google account. An application using the Google API has to request a limited number of scopes.
+So it may request access to read your contacts, but it wouldn't be able to upload to your Google Drive or send email as you.
+
+⚠️⚠️⚠️ I also want to emphasize that scope is specifically a way for an application to *request* access. Whether or not that request is granted is a whole different story.
+Those will then be surfaced to the user -- shown to the user so that the user knows what scopes will be granted when they approve the request.
+The access token that ends up being issued will then be associated with the limited scopes that were granted. So this is essentially a way to limit what an application can do within the context of what a user can do within a system.
+And it's really important to remember that this is not a way to actually implement groups or rules or a permission scheme within your API. This is specifically about granting applications limited access to the API.
+So you may have the concept of two different types of users, consumer users and your admin users. And those admin users will already have some sort of additional privileges within your system. For example, in a product catalog, your admin users may be able to add new entries into the catalog, but your consumer users will only be able to browse the catalog. Now that concept exists outside of the concept of OAuth scopes. OAuth scopes don't help you with this.
+What OAuth scopes do is it means that if you do have an admin user logging into an application, the admin user could grant that application limited access to their account, which means instead of granting the application permission to create entries in the catalog, that user could grant that application read only access to the catalog.
+So just to reiterate, scope's are a way for an application to request limited access to someone's account. You're going to have some other separate concept of permissions or groups or roles existing in your API already outside of the concept of OAuth scope.
+⚠️ Scope in OAuth is not a way to build a permissions system. It's a way to limit what an access token can do within the context of what a user can already do.
